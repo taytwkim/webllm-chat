@@ -22,6 +22,7 @@ const {
   initEngine,
   generate: generateLocal,
   initProgress,
+  clearModelCache,
 } = useWebLLM();
 
   // Initialize WebLLM when switching to local mode
@@ -107,14 +108,28 @@ const {
         },
       ]
     : messages;
-
+  
+  /*
+  const handleClearLocalCache = useCallback(async () => {
+    try {
+      await clearModelCache();
+      setMessages([]);
+      setCurrentResponse('');
+    } catch {
+      // clearModelCache already calls setError on failure
+    }
+  }, [clearModelCache]);
+  */
+ 
   return (
     <div className="flex flex-col h-screen bg-white">
       <ModeSelector
         mode={mode}
         onModeChange={setMode}
-        isLocalLoading={isWebLLMLoading}
       />
+
+      {/*      
+      <SettingsMenu onClearLocalCache={handleClearLocalCache} />
 
       {error && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg shadow-sm">
@@ -127,6 +142,7 @@ const {
           </button>
         </div>
       )}
+      */}
 
       <ChatArea messages={displayMessages} isLoading={isLoading && !currentResponse} />
 

@@ -1,6 +1,12 @@
-// useWebLLM.ts
 import { useState, useCallback, useRef } from 'react';
 import * as webllm from '@mlc-ai/web-llm';
+
+/*
+console.log(
+  'Available WebLLM model_ids:',
+  webllm.prebuiltAppConfig.model_list.map((m) => m.model_id),
+);
+*/
 
 export interface WebLLMState {
   engine: webllm.MLCEngine | null;
@@ -10,12 +16,12 @@ export interface WebLLMState {
 }
 
 interface InitProgressState {
-  progress: number; // 0–1
-  text: string;     // short UI label
-  rawText: string;  // full message from WebLLM
+  progress: number;
+  text: string;
+  rawText: string;
 }
 
-const DEFAULT_MODEL = 'TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k';
+const DEFAULT_MODEL = 'Llama-3.2-3B-Instruct-q4f32_1-MLC';
 
 function summarizeProgressText(raw: string): string {
   const lower = raw.toLowerCase();
@@ -128,6 +134,23 @@ export function useWebLLM() {
     hasTriedInitRef.current = false;
   }, []);
 
+  const clearModelCache = useCallback(async () => {
+    try {
+      await webllm.deleteModelAllInfoInCache(DEFAULT_MODEL);
+      
+      setEngine(null);
+      setIsInitialized(false);
+      setError(null);
+      setInitProgress(null);
+      hasTriedInitRef.current = false;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to clear local model cache';
+      setError(msg);
+      console.error('Failed to clear model cache:', e);
+      throw e;
+    }
+  }, []);
+
   return {
     engine,
     isLoading,
@@ -137,5 +160,6 @@ export function useWebLLM() {
     initEngine,
     generate,
     reset,
+    clearModelCache,
   };
 }
