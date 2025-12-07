@@ -30,7 +30,7 @@ export default function ChatArea({ messages, isLoading }: ChatAreaProps) {
           <>
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
-            ))}
+            ))}  
             {isLoading && (
               <div className="flex justify-start mb-4">
                 <div className="bg-gray-100 rounded-2xl px-4 py-3">

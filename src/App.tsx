@@ -5,22 +5,24 @@ import { generateRemoteResponse } from './services/remoteApi';
 import ModeSelector from './components/ModeSelector';
 import ChatArea from './components/ChatArea';
 import ChatInput from './components/ChatInput';
+import LoadingModal from './components/LoadingModal';
 
 function App() {
-  const [mode, setMode] = useState<InferenceMode>('local');
+  const [mode, setMode] = useState<InferenceMode>('remote');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentResponse, setCurrentResponse] = useState<string>('');
 
-  const {
-    engine,
-    isLoading: isWebLLMLoading,
-    error: webLLMError,
-    isInitialized,
-    initEngine,
-    generate: generateLocal,
-  } = useWebLLM();
+const {
+  engine,
+  isLoading: isWebLLMLoading,
+  error: webLLMError,
+  isInitialized,
+  initEngine,
+  generate: generateLocal,
+  initProgress,
+} = useWebLLM();
 
   // Initialize WebLLM when switching to local mode
   useEffect(() => {
@@ -62,6 +64,7 @@ function App() {
 
           // Generate response using WebLLM
           assistantContent = await generateLocal(content, (text) => {
+            console.log(text);
             setCurrentResponse(text);
           });
         } else {
@@ -127,6 +130,12 @@ function App() {
 
       <ChatArea messages={displayMessages} isLoading={isLoading && !currentResponse} />
 
+      <LoadingModal
+        open={mode === 'local' && isWebLLMLoading && !isInitialized}
+        message={initProgress?.text ?? 'Initializing local model...'}
+        progress={initProgress?.progress}
+      />
+
       <ChatInput
         onSend={handleSend}
         disabled={isLoading || (mode === 'local' && !isInitialized)}
@@ -141,4 +150,3 @@ function App() {
 }
 
 export default App;
-

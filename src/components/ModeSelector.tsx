@@ -35,11 +35,13 @@ export default function ModeSelector({ mode, onModeChange, isLocalLoading }: Mod
           </svg>
         </button>
         
+        {/*
         {isLocalLoading && mode === 'local' && (
           <div className="absolute top-full left-0 mt-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg shadow-sm text-sm text-blue-700">
             Initializing local model...
           </div>
         )}
+        */}
       </div>
     </div>
   );
