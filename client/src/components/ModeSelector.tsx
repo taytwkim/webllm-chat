@@ -42,13 +42,13 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="flex flex-col items-start gap-0.5 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors min-w-[150px]"
+          className="flex flex-col items-start gap-0.5 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors min-w-[170px]"
         >
           <span className="text-xs font-medium text-gray-500">
             Switch chat
           </span>
-          <span className="flex items-center gap-1 text-sm font-semibold text-gray-900">
-            {mode === 'local' ? '🏠 Local' : '☁️ Remote'}
+          <span className="flex items-center gap-1 text-sm font-semibold text-gray-900 whitespace-nowrap">
+            {mode === 'local' ? '💻 Local (LLaMa 3.2 3B)' : '☁️ Remote'}
             <svg
               className="w-4 h-4 text-gray-500 ml-1"
               fill="none"
@@ -67,7 +67,7 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
 
         {/* Dropdown menu */}
         {open && (
-          <div className="absolute mt-2 w-40 rounded-lg bg-white border border-gray-200 shadow-lg py-1">
+          <div className="absolute mt-2 min-w-[200px] rounded-lg bg-white border border-gray-200 shadow-lg py-1">
             <button
               type="button"
               onClick={() => handleSelect('remote')}
@@ -76,7 +76,7 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
               }`}
             >
               <span>☁️</span>
-              <span>Remote</span>
+              <span className="whitespace-nowrap">Remote</span>
             </button>
             <button
               type="button"
@@ -85,8 +85,8 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
                 mode === 'local' ? 'font-semibold text-gray-900' : 'text-gray-700'
               }`}
             >
-              <span>🏠</span>
-              <span>Local</span>
+              <span>💻</span>
+              <span className="whitespace-nowrap">Local (LLaMa 3.2 3B)</span>
             </button>
           </div>
         )}

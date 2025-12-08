@@ -21,7 +21,7 @@ export default function ChatArea({ messages, isLoading }: ChatAreaProps) {
           // Empty state: fully centered
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <h1 className="text-3xl font-semibold text-gray-900 mb-2">
-              What can I help you with?
+              Ready when you are.
             </h1>
             <p className="text-gray-500 max-w-md">
               Ask anything, then switch between local and remote chats to see how

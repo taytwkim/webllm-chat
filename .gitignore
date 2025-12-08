@@ -1,33 +1,26 @@
+# .gitignore at repo root
+
+# OS / editor
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Node projects at root-level dirs
+client/node_modules
+api/node_modules
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Environment variables
+# Env files at root or in api
 .env
-.env.local
-.env.production
+.env.*
+api/.env
+api/.env.*
 
-# WebLLM cache
-.webllm
-
+# Build outputs
+client/dist
+client/dist-ssr
+api/dist
