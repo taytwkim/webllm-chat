@@ -15,38 +15,51 @@ export default function ChatArea({ messages, isLoading }: ChatAreaProps) {
   }, [messages, isLoading]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-8 pb-32">
-      <div className="max-w-3xl mx-auto">
+    <div className="flex-1 overflow-y-auto px-4 pb-32">
+      <div className="max-w-3xl mx-auto h-full flex flex-col">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <h1 className="text-4xl font-semibold text-gray-900 mb-4">
-              Chat locally or remotely—your choice
+          // Empty state: fully centered
+          <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <h1 className="text-3xl font-semibold text-gray-900 mb-2">
+              What can I help you with?
             </h1>
             <p className="text-gray-500 max-w-md">
-              Choose local inference for privacy and on-device processing, or remote inference for faster responses. Switch modes anytime.
+              Ask anything, then switch between local and remote chats to see how
+              responses change.
             </p>
           </div>
         ) : (
-          <>
+          // Messages state: top padding restored
+          <div className="pt-8">
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
-            ))}  
+            ))}
+
             {isLoading && (
               <div className="flex justify-start mb-4">
                 <div className="bg-gray-100 rounded-2xl px-4 py-3">
                   <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '0ms' }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '150ms' }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: '300ms' }}
+                    />
                   </div>
                 </div>
               </div>
             )}
+
             <div ref={messagesEndRef} />
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 }
-

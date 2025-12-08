@@ -1,19 +1,35 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface SettingsMenuProps {
-  onClearLocalCache: () => Promise<void> | void;
+  onClearChat: () => void;
 }
 
-export default function SettingsMenu({ onClearLocalCache }: SettingsMenuProps) {
+export default function SettingsMenu({ onClearChat }: SettingsMenuProps) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const handleClearClick = async () => {
+  const handleClearClick = () => {
     setOpen(false);
-    await onClearLocalCache();
+    onClearChat();
   };
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="fixed top-4 right-4 z-50" ref={containerRef}>
       <div className="relative">
         <button
           type="button"
@@ -37,9 +53,9 @@ export default function SettingsMenu({ onClearLocalCache }: SettingsMenuProps) {
             <button
               type="button"
               onClick={handleClearClick}
-              className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
-              Clear local model cache
+              Clear chat
             </button>
           </div>
         )}

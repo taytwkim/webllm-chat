@@ -1,5 +1,5 @@
 // src/components/ModeSelector.tsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { InferenceMode } from '../types';
 
 interface ModeSelectorProps {
@@ -9,6 +9,7 @@ interface ModeSelectorProps {
 
 export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const handleSelect = (newMode: InferenceMode) => {
     if (newMode !== mode) {
@@ -17,10 +18,25 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
     setOpen(false);
   };
 
-  const currentLabel = mode === 'local' ? 'Local' : 'Remote';
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
 
   return (
-    <div className="fixed top-4 left-4 z-50">
+    <div className="fixed top-4 left-4 z-50" ref={containerRef}>
       <div className="relative inline-block text-left">
         {/* Trigger button */}
         <button
@@ -29,7 +45,7 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
           className="flex flex-col items-start gap-0.5 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors min-w-[150px]"
         >
           <span className="text-xs font-medium text-gray-500">
-            Switch mode
+            Switch chat
           </span>
           <span className="flex items-center gap-1 text-sm font-semibold text-gray-900">
             {mode === 'local' ? '🏠 Local' : '☁️ Remote'}
