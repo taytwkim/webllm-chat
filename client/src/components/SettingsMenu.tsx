@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 
 interface SettingsMenuProps {
   onClearChat: () => void;
+  onOpenBenchmark: () => void;
 }
 
-export default function SettingsMenu({ onClearChat }: SettingsMenuProps) {
+export default function SettingsMenu({ onClearChat, onOpenBenchmark }: SettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -13,20 +14,12 @@ export default function SettingsMenu({ onClearChat }: SettingsMenuProps) {
     onClearChat();
   };
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!open) return;
+  const handleBenchmarkClick = () => {
+    setOpen(false);
+    onOpenBenchmark();
+  };
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
+  // ... existing code ...
 
   return (
     <div className="fixed top-4 right-4 z-50" ref={containerRef}>
@@ -49,11 +42,18 @@ export default function SettingsMenu({ onClearChat }: SettingsMenuProps) {
         </button>
 
         {open && (
-          <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+          <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-1 shadow-lg z-50">
+            <button
+              type="button"
+              onClick={handleBenchmarkClick}
+              className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+            >
+              📊 Run Benchmark
+            </button>
             <button
               type="button"
               onClick={handleClearClick}
-              className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
             >
               Clear chat
             </button>

@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  # The vLLM server (requires GPU)
+  vllm:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    ports:
+      - "8000:8000"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    # Adjust model args as needed. --dtype float16 is common for T4/L4 GPUs.
+    command: --model meta-llama/Llama-2-7b-chat-hf --host 0.0.0.0 --port 8000 --dtype float16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # MongoDB for storing remote chat messages
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=webllm
+    restart: unless-stopped
+
+  # Your proxy API (metrics + interface)
+  api:
+    build: ./api
+    ports:
+      - "8001:8001"
+    environment:
+      - VLLM_API_BASE=http://vllm:8000/v1
+      - MODEL_NAME=meta-llama/Llama-2-7b-chat-hf
+      - PORT=8001
+      # MongoDB logging for remote chats (using local MongoDB service)
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/webllm}
+      - MONGODB_DB=${MONGODB_DB:-webllm}
+      - MONGODB_COLLECTION=${MONGODB_COLLECTION:-remote_messages}
+    volumes:
+      # Mount metrics file to host so you can see it
+      - ./metrics:/app/metrics
+    depends_on:
+      - vllm
+      - mongodb
+
+volumes:
+  mongodb_data:
+# Note: For Google Cloud deployment (VM), you often just run the containers directly
+# or use `docker-compose up` inside the VM.
+

@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
-import * as webllm from '@mlc-ai/web-llm';
+import { useState, useCallback, useRef } from "react";
+import * as webllm from "@mlc-ai/web-llm";
+import { InferenceMetrics, Message } from "../types";
 
 /*
 console.log(
@@ -21,28 +22,28 @@ interface InitProgressState {
   rawText: string;
 }
 
-const DEFAULT_MODEL = 'Llama-3.2-3B-Instruct-q4f32_1-MLC';
+const DEFAULT_MODEL = "Llama-3.2-3B-Instruct-q4f32_1-MLC";
 
 function summarizeProgressText(raw: string): string {
   const lower = raw.toLowerCase();
 
-  if (lower.includes('fetching param cache')) {
-    return 'Fetching model parameters...';
-  }
-  
-  if (lower.includes('loading model from cache')) {
-    return 'Loading model from cache...';
+  if (lower.includes("fetching param cache")) {
+    return "Fetching model parameters...";
   }
 
-  if (lower.includes('loading gpu shader modules')) {
-    return 'Loading GPU...';
+  if (lower.includes("loading model from cache")) {
+    return "Loading model from cache...";
   }
 
-  if (lower.includes('finish loading on webgpu')) {
-    return 'Finished loading on WebGPU...';
+  if (lower.includes("loading gpu shader modules")) {
+    return "Loading GPU...";
   }
 
-  return 'Loading local model...';
+  if (lower.includes("finish loading on webgpu")) {
+    return "Finished loading on WebGPU...";
+  }
+
+  return "Loading local model...";
 }
 
 export function useWebLLM() {
@@ -50,7 +51,9 @@ export function useWebLLM() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [initProgress, setInitProgress] = useState<InitProgressState | null>(null);
+  const [initProgress, setInitProgress] = useState<InitProgressState | null>(
+    null
+  );
 
   const hasTriedInitRef = useRef(false);
 
@@ -66,9 +69,9 @@ export function useWebLLM() {
       const eng = new webllm.MLCEngine();
 
       eng.setInitProgressCallback((report: webllm.InitProgressReport) => {
-        const rawText = report.text ?? 'Initializing local model...';
+        const rawText = report.text ?? "Initializing local model...";
 
-        console.log('Init progress:', report.progress, rawText);
+        console.log("Init progress:", report.progress, rawText);
 
         setInitProgress({
           progress: report.progress ?? 0,
@@ -86,39 +89,80 @@ export function useWebLLM() {
       setIsInitialized(true);
     } catch (e) {
       const msg =
-        e instanceof Error ? e.message : 'Failed to initialize WebLLM';
+        e instanceof Error ? e.message : "Failed to initialize WebLLM";
       setError(msg);
       setIsInitialized(false);
-      console.error('WebLLM init failed:', e);
+      console.error("WebLLM init failed:", e);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // Update the generate function in useWebLLM
   const generate = useCallback(
-    async (prompt: string, onUpdate: (text: string) => void) => {
+    async (
+      conversationHistory: Message[],
+      onUpdate: (text: string) => void,
+      onMetrics?: (metrics: InferenceMetrics) => void
+    ) => {
       if (!engine || !isInitialized) {
-        throw new Error('Engine not initialized');
+        throw new Error("Engine not initialized");
       }
 
+      const startTime = performance.now();
+      let firstTokenTime: number | null = null;
+      let tokenCount = 0;
+
+      // Convert Message[] to the format expected by WebLLM (role + content only)
+      const apiMessages = conversationHistory.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Add system message if not present
+      const messages = [
+        {
+          role: "system" as const,
+          content: "You are a helpful AI agent helping users.",
+        },
+        ...apiMessages,
+      ];
+
       const completion = await engine.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful AI agent helping users.',
-          },
-          { role: 'user', content: prompt },
-        ],
+        messages,
         stream: true,
       });
 
-      let fullText = '';
+      let fullText = "";
       for await (const chunk of completion) {
-        const delta = chunk.choices[0]?.delta?.content || '';
+        if (firstTokenTime === null) {
+          firstTokenTime = performance.now();
+        }
+
+        const delta = chunk.choices[0]?.delta?.content || "";
         if (delta) {
+          tokenCount++; // Approximation
           fullText += delta;
           onUpdate(fullText);
         }
+      }
+
+      const endTime = performance.now();
+      const ttft = firstTokenTime ? firstTokenTime - startTime : 0;
+      const totalTime = endTime - startTime;
+
+      // Calculate tokens per second (excluding TTFT for pure generation speed, or total?)
+      // Usually TPS = (Tokens - 1) / (TotalTime - TTFT) for decoding speed
+      // Or just Tokens / TotalTime for end-to-end throughput. Let's do end-to-end.
+      const tps = totalTime > 0 ? tokenCount / (totalTime / 1000) : 0;
+
+      if (onMetrics) {
+        onMetrics({
+          ttftMs: ttft,
+          totalTimeMs: totalTime,
+          tokensPerSec: tps,
+          tokenCount,
+        });
       }
 
       return fullText;
@@ -137,16 +181,17 @@ export function useWebLLM() {
   const clearModelCache = useCallback(async () => {
     try {
       await webllm.deleteModelAllInfoInCache(DEFAULT_MODEL);
-      
+
       setEngine(null);
       setIsInitialized(false);
       setError(null);
       setInitProgress(null);
       hasTriedInitRef.current = false;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to clear local model cache';
+      const msg =
+        e instanceof Error ? e.message : "Failed to clear local model cache";
       setError(msg);
-      console.error('Failed to clear model cache:', e);
+      console.error("Failed to clear model cache:", e);
       throw e;
     }
   }, []);

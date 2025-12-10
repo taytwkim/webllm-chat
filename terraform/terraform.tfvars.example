@@ -1,0 +1,12 @@
+project_id = "your-gcp-project-id-here"
+region     = "us-central1"
+zone       = "us-central1-a"
+hf_token   = "hf_your_hugging_face_token_here"
+# machine_type = "g2-standard-4" # Uncomment to change
+# gpu_type     = "nvidia-l4"     # Uncomment to change
+
+# Optional MongoDB configuration for logging remote chats
+# mongodb_uri        = "mongodb+srv://user:pass@cluster.example.com/webllm"
+# mongodb_db         = "webllm"
+# mongodb_collection = "remote_messages"
+
