@@ -48,7 +48,7 @@ export default function SettingsMenu({ onClearChat, onOpenBenchmark }: SettingsM
               onClick={handleBenchmarkClick}
               className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
             >
-              📊 Run Benchmark
+              Run Benchmark
             </button>
             <button
               type="button"

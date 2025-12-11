@@ -123,7 +123,7 @@ export function useWebLLM() {
       const messages = [
         {
           role: "system" as const,
-          content: "You are a helpful AI agent helping users.",
+          content: "You are a helpful AI assistant. Answer questions directly and accurately. Provide clear, concise responses that directly address what the user is asking.",
         },
         ...apiMessages,
       ];

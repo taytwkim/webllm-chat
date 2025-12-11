@@ -151,9 +151,13 @@ function App() {
 
   const {
     results: benchResults,
+    comparisonResults,
     isRunning: isBenchRunning,
+    isComparing: isBenchComparing,
     progress: benchProgress,
+    currentMode: benchCurrentMode,
     runBenchmarkSuite,
+    runComparisonBenchmark,
     clearResults: clearBenchResults,
     downloadCSV: downloadBenchCSV,
   } = useBenchmark();
@@ -339,6 +343,29 @@ function App() {
     [runBenchmarkSuite, isInitialized, engine, generateLocal]
   );
 
+  const handleRunComparisonBenchmark = useCallback(async () => {
+    if (!isInitialized || !engine) {
+      setError("Please switch to Local mode and wait for it to initialize before running comparison.");
+      return;
+    }
+
+    const localGenerateFn = async (prompt: string, onUpdate: (t: string) => void, onMetrics: (m: InferenceMetrics) => void) => {
+      const singleMessage: Message[] = [
+        { id: "benchmark", role: "user", content: prompt, timestamp: new Date() },
+      ];
+      return generateLocal(singleMessage, onUpdate, onMetrics);
+    };
+
+    const remoteGenerateFn = async (prompt: string, onUpdate: (t: string) => void, onMetrics: (m: InferenceMetrics) => void) => {
+      const singleMessage: Message[] = [
+        { id: "benchmark", role: "user", content: prompt, timestamp: new Date() },
+      ];
+      return generateRemoteResponse(singleMessage, onUpdate, onMetrics);
+    };
+
+    await runComparisonBenchmark(localGenerateFn, remoteGenerateFn, isInitialized);
+  }, [runComparisonBenchmark, isInitialized, engine, generateLocal]);
+
   // Display current streaming response
   const baseMessages = messagesByMode[mode];
 
@@ -408,11 +435,16 @@ function App() {
         isOpen={isBenchmarkOpen}
         onClose={() => setIsBenchmarkOpen(false)}
         results={benchResults}
+        comparisonResults={comparisonResults}
         isRunning={isBenchRunning}
+        isComparing={isBenchComparing}
         progress={benchProgress}
+        currentMode={benchCurrentMode}
         onRun={handleRunBenchmark}
+        onRunComparison={handleRunComparisonBenchmark}
         onDownload={downloadBenchCSV}
         onClear={clearBenchResults}
+        isLocalReady={isInitialized}
       />
 
       <LoadingModal

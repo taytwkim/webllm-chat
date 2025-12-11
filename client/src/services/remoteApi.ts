@@ -116,7 +116,7 @@ export async function generateRemoteResponse(
         {
           role: "system",
           content:
-            "You are a friendly, concise assistant for casual small talk. Answer the user's latest message once in a short paragraph. Do not roleplay both user and assistant, and do not include labels like 'user:' or 'assistant:' in your reply.",
+            "You are a helpful AI assistant. Answer questions directly and accurately. Provide clear, concise responses that directly address what the user is asking. Do not include labels like 'user:' or 'assistant:' in your reply.",
         },
         ...apiMessages,
       ],
