@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Message, InferenceMode, InferenceMetrics } from "../types";
+import { InferenceMode, InferenceMetrics } from "../types";
 import {
   fetchBenchmarkResults,
   saveBenchmarkResults,
@@ -131,7 +131,6 @@ export function useBenchmark() {
   const [isComparing, setIsComparing] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [currentMode, setCurrentMode] = useState<InferenceMode>("local");
-  const [hasHydrated, setHasHydrated] = useState(false);
 
   // Load persisted benchmark results from MongoDB on mount
   useEffect(() => {
@@ -141,7 +140,6 @@ export function useBenchmark() {
       if (loaded.length > 0) {
         setResults(loaded as BenchmarkResult[]);
       }
-      setHasHydrated(true);
     });
     return () => {
       cancelled = true;
