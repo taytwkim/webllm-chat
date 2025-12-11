@@ -11,8 +11,8 @@ services:
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
     volumes:
       - ~/.cache/huggingface:/root/.cache/huggingface
-    # Adjust model args as needed. --dtype float16 is common for T4/L4 GPUs.
-    command: --model meta-llama/Llama-2-7b-chat-hf --host 0.0.0.0 --port 8000 --dtype float16
+    # Using Mistral-7B-Instruct - open model, no gating, high quality responses
+    command: --model mistralai/Mistral-7B-Instruct-v0.3 --host 0.0.0.0 --port 8000 --dtype float16
     deploy:
       resources:
         reservations:
@@ -39,7 +39,7 @@ services:
       - "8001:8001"
     environment:
       - VLLM_API_BASE=http://vllm:8000/v1
-      - MODEL_NAME=meta-llama/Llama-2-7b-chat-hf
+      - MODEL_NAME=mistralai/Mistral-7B-Instruct-v0.3
       - PORT=8001
       # MongoDB logging for remote chats (using local MongoDB service)
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/webllm}
@@ -54,6 +54,6 @@ services:
 
 volumes:
   mongodb_data:
-# Note: For Google Cloud deployment (VM), you often just run the containers directly
+# Note: For Google Cloud deployment (VM), you often just run the containers directly 
 # or use `docker-compose up` inside the VM.
 

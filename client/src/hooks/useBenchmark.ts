@@ -1,5 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Message, InferenceMode, InferenceMetrics } from '../types';
+import {
+  fetchBenchmarkResults,
+  saveBenchmarkResults,
+  clearBenchmarkResults as clearBenchmarksAPI,
+} from '../services/remoteApi';
 
 export interface BenchmarkResult {
   promptId: string;
@@ -22,6 +27,22 @@ export function useBenchmark() {
   const [isRunning, setIsRunning] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
   const [currentMode, setCurrentMode] = useState<InferenceMode>('local');
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  // Load persisted benchmark results from MongoDB on mount
+  useEffect(() => {
+    let cancelled = false;
+    fetchBenchmarkResults().then((loaded) => {
+      if (cancelled) return;
+      if (loaded.length > 0) {
+        setResults(loaded as BenchmarkResult[]);
+      }
+      setHasHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const runBenchmarkSuite = useCallback(async (
     mode: InferenceMode,
@@ -62,6 +83,13 @@ export function useBenchmark() {
       }
       
       setResults(prev => [...prev, ...newResults]);
+      
+      // Persist new results to MongoDB
+      if (newResults.length > 0) {
+        saveBenchmarkResults(newResults).then((saved) => {
+          console.log(`Saved ${saved} benchmark results to MongoDB`);
+        });
+      }
     } catch (e) {
       console.error("Benchmark failed", e);
     } finally {
@@ -69,7 +97,15 @@ export function useBenchmark() {
     }
   }, []);
 
-  const clearResults = useCallback(() => setResults([]), []);
+  const clearResults = useCallback(async () => {
+    setResults([]);
+    try {
+      await clearBenchmarksAPI();
+      console.log('Cleared benchmark results from MongoDB');
+    } catch (e) {
+      console.error('Failed to clear benchmarks from MongoDB:', e);
+    }
+  }, []);
 
   const downloadCSV = useCallback(() => {
     if (results.length === 0) return;

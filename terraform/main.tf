@@ -109,7 +109,7 @@ resource "google_compute_instance" "vm_instance" {
             - HUGGING_FACE_HUB_TOKEN=${var.hf_token}
           volumes:
             - ~/.cache/huggingface:/root/.cache/huggingface
-          command: --model meta-llama/Llama-2-7b-chat-hf --host 0.0.0.0 --port 8000 --dtype float16 
+          command: --model mistralai/Mistral-7B-Instruct-v0.3 --host 0.0.0.0 --port 8000 --dtype float16 
           deploy:
             resources:
               reservations:
@@ -134,7 +134,7 @@ resource "google_compute_instance" "vm_instance" {
             - "8001:8001"
           environment:
             - VLLM_API_BASE=http://vllm:8000/v1
-            - MODEL_NAME=meta-llama/Llama-2-7b-chat-hf
+            - MODEL_NAME=mistralai/Mistral-7B-Instruct-v0.3
             - PORT=8001
             # MongoDB logging for remote chats (using local MongoDB service)
             - MONGODB_URI=${var.mongodb_uri != "" ? var.mongodb_uri : "mongodb://mongodb:27017/${var.mongodb_db}"}

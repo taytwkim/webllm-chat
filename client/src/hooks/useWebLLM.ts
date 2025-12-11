@@ -30,7 +30,7 @@ function summarizeProgressText(raw: string): string {
   if (lower.includes("fetching param cache")) {
     return "Fetching model parameters...";
   }
-
+  
   if (lower.includes("loading model from cache")) {
     return "Loading model from cache...";
   }
@@ -98,7 +98,7 @@ export function useWebLLM() {
     }
   }, []);
 
-  // Update the generate function in useWebLLM
+// Update the generate function in useWebLLM
   const generate = useCallback(
     async (
       conversationHistory: Message[],
@@ -136,9 +136,9 @@ export function useWebLLM() {
       let fullText = "";
       for await (const chunk of completion) {
         if (firstTokenTime === null) {
-          firstTokenTime = performance.now();
+            firstTokenTime = performance.now();
         }
-
+        
         const delta = chunk.choices[0]?.delta?.content || "";
         if (delta) {
           tokenCount++; // Approximation
@@ -150,7 +150,7 @@ export function useWebLLM() {
       const endTime = performance.now();
       const ttft = firstTokenTime ? firstTokenTime - startTime : 0;
       const totalTime = endTime - startTime;
-
+      
       // Calculate tokens per second (excluding TTFT for pure generation speed, or total?)
       // Usually TPS = (Tokens - 1) / (TotalTime - TTFT) for decoding speed
       // Or just Tokens / TotalTime for end-to-end throughput. Let's do end-to-end.
@@ -158,9 +158,9 @@ export function useWebLLM() {
 
       if (onMetrics) {
         onMetrics({
-          ttftMs: ttft,
-          totalTimeMs: totalTime,
-          tokensPerSec: tps,
+            ttftMs: ttft,
+            totalTimeMs: totalTime,
+            tokensPerSec: tps,
           tokenCount,
         });
       }
@@ -181,7 +181,7 @@ export function useWebLLM() {
   const clearModelCache = useCallback(async () => {
     try {
       await webllm.deleteModelAllInfoInCache(DEFAULT_MODEL);
-
+      
       setEngine(null);
       setIsInitialized(false);
       setError(null);

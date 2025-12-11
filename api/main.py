@@ -23,11 +23,12 @@ PORT = int(os.getenv("PORT", "8001"))
 MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_DB = os.getenv("MONGODB_DB", "webllm")
 MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "remote_messages")
+MONGODB_BENCHMARKS_COLLECTION = os.getenv("MONGODB_BENCHMARKS_COLLECTION", "benchmarks")
 
 mongo_client = AsyncIOMotorClient(MONGODB_URI) if MONGODB_URI else None
-mongo_collection = (
-    mongo_client[MONGODB_DB][MONGODB_COLLECTION] if mongo_client else None
-)
+mongo_db = mongo_client[MONGODB_DB] if mongo_client is not None else None
+mongo_collection = mongo_db[MONGODB_COLLECTION] if mongo_db is not None else None
+benchmarks_collection = mongo_db[MONGODB_BENCHMARKS_COLLECTION] if mongo_db is not None else None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -153,18 +154,29 @@ async def chat_proxy(request: ChatRequest):
                             yield f"{chunk}\n"
 
             total_time = (time.time() - start_time) * 1000
+            tokens_per_sec = token_count / (total_time / 1000) if total_time > 0 else 0
             logger.info(f"Request completed. Total latency: {total_time:.2f}ms. Tokens: ~{token_count}")
             
             # Log to CSV
             log_metrics(ttft, total_time, token_count)
 
-            # After streaming completes, persist full conversation including the model response
+            # After streaming completes, persist full conversation including the model response with metrics
             if mongo_collection is not None:
                 try:
                     full_messages = list(messages)
                     if assistant_text:
+                        # Include metrics with the assistant message so they persist
                         full_messages = full_messages + [
-                            {"role": "assistant", "content": assistant_text}
+                            {
+                                "role": "assistant",
+                                "content": assistant_text,
+                                "metrics": {
+                                    "ttftMs": ttft,
+                                    "totalTimeMs": total_time,
+                                    "tokensPerSec": tokens_per_sec,
+                                    "tokenCount": token_count,
+                                }
+                            }
                         ]
 
                     await mongo_collection.insert_one(
@@ -204,11 +216,15 @@ async def get_chat_history(limit: int = 50):
             # Add metadata from the chat document, excluding system messages
             for msg in chat_messages:
                 if msg.get("role") != "system":
-                    all_messages.append({
+                    message_data = {
                         "role": msg.get("role"),
                         "content": msg.get("content"),
                         "timestamp": chat.get("timestamp").isoformat() if chat.get("timestamp") else datetime.utcnow().isoformat(),
-                    })
+                    }
+                    # Include metrics if they exist (for assistant messages)
+                    if msg.get("metrics"):
+                        message_data["metrics"] = msg.get("metrics")
+                    all_messages.append(message_data)
         
         # Sort by timestamp (oldest first for conversation flow)
         all_messages.sort(key=lambda x: x.get("timestamp", ""))
@@ -232,37 +248,89 @@ async def clear_chat_history():
         logger.error(f"Failed to clear chat history: {e}")
         return {"error": str(e)}
 
-@app.get("/api/chat/history")
-async def get_chat_history(limit: int = 100):
-    """Retrieve recent remote chat history from MongoDB."""
-    if mongo_collection is None:
-        return {"messages": [], "error": "MongoDB not configured"}
+# ============== Benchmark API Endpoints ==============
+
+class BenchmarkResult(BaseModel):
+    promptId: str
+    promptType: str
+    mode: str  # 'local' or 'remote'
+    metrics: dict  # { ttftMs, tokensPerSec, totalTimeMs, tokenCount }
+    timestamp: str
+    modelName: str
+
+class BenchmarkBatch(BaseModel):
+    results: List[BenchmarkResult]
+
+@app.post("/api/benchmarks")
+async def save_benchmark_results(batch: BenchmarkBatch):
+    """Save benchmark results to MongoDB."""
+    if benchmarks_collection is None:
+        return {"error": "MongoDB not configured", "saved": 0}
     
     try:
-        # Fetch the most recent chat sessions
-        # Each document contains a full conversation (messages array)
-        cursor = mongo_collection.find().sort("timestamp", -1).limit(limit)
-        chats = await cursor.to_list(length=limit)
+        docs = []
+        for r in batch.results:
+            docs.append({
+                "promptId": r.promptId,
+                "promptType": r.promptType,
+                "mode": r.mode,
+                "metrics": r.metrics,
+                "timestamp": r.timestamp,
+                "modelName": r.modelName,
+                "createdAt": datetime.utcnow(),
+            })
         
-        # Flatten all messages from all chats into a single list
-        all_messages = []
-        for chat in chats:
-            chat_messages = chat.get("messages", [])
-            # Add metadata from the chat document
-            for msg in chat_messages:
-                all_messages.append({
-                    "role": msg.get("role"),
-                    "content": msg.get("content"),
-                    "timestamp": chat.get("timestamp").isoformat() if chat.get("timestamp") else datetime.utcnow().isoformat(),
-                })
-        
-        # Sort by timestamp (oldest first for conversation flow)
-        all_messages.sort(key=lambda x: x.get("timestamp", ""))
-        
-        return {"messages": all_messages}
+        if docs:
+            result = await benchmarks_collection.insert_many(docs)
+            logger.info(f"Saved {len(result.inserted_ids)} benchmark results to MongoDB")
+            return {"saved": len(result.inserted_ids)}
+        return {"saved": 0}
     except Exception as e:
-        logger.error(f"Failed to retrieve chat history: {e}")
-        return {"messages": [], "error": str(e)}
+        logger.error(f"Failed to save benchmark results: {e}")
+        return {"error": str(e), "saved": 0}
+
+@app.get("/api/benchmarks")
+async def get_benchmark_results(limit: int = 200):
+    """Retrieve benchmark results from MongoDB."""
+    if benchmarks_collection is None:
+        return {"results": [], "error": "MongoDB not configured"}
+    
+    try:
+        cursor = benchmarks_collection.find().sort("createdAt", -1).limit(limit)
+        docs = await cursor.to_list(length=limit)
+        
+        results = []
+        for doc in docs:
+            results.append({
+                "promptId": doc.get("promptId"),
+                "promptType": doc.get("promptType"),
+                "mode": doc.get("mode"),
+                "metrics": doc.get("metrics"),
+                "timestamp": doc.get("timestamp"),
+                "modelName": doc.get("modelName"),
+            })
+        
+        # Sort oldest first for display
+        results.sort(key=lambda x: x.get("timestamp", ""))
+        
+        return {"results": results}
+    except Exception as e:
+        logger.error(f"Failed to retrieve benchmark results: {e}")
+        return {"results": [], "error": str(e)}
+
+@app.delete("/api/benchmarks")
+async def clear_benchmark_results():
+    """Clear all benchmark results from MongoDB."""
+    if benchmarks_collection is None:
+        return {"error": "MongoDB not configured"}
+    
+    try:
+        result = await benchmarks_collection.delete_many({})
+        logger.info(f"Cleared {result.deleted_count} benchmark results from MongoDB")
+        return {"deleted_count": result.deleted_count, "message": "All benchmark results cleared"}
+    except Exception as e:
+        logger.error(f"Failed to clear benchmark results: {e}")
+        return {"error": str(e)}
 
 @app.get("/health")
 def health_check():

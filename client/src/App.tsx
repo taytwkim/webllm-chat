@@ -192,7 +192,7 @@ function App() {
     if (!hasHydratedLocal) return;
     saveLocalMessages(messagesByMode.local);
   }, [messagesByMode.local, hasHydratedLocal]);
-
+  
   // Initialize WebLLM when switching to local mode
   useEffect(() => {
     if (mode === "local" && !isInitialized && !isWebLLMLoading && !engine) {
@@ -251,7 +251,7 @@ function App() {
           assistantContent = await generateLocal(
             conversationHistory,
             (text) => {
-              setCurrentResponse(text);
+            setCurrentResponse(text);
             },
             onMetrics
           );
@@ -259,7 +259,7 @@ function App() {
           assistantContent = await generateRemoteResponse(
             conversationHistory,
             (text) => {
-              setCurrentResponse(text);
+            setCurrentResponse(text);
             },
             onMetrics
           );
@@ -293,23 +293,23 @@ function App() {
 
   const handleRunBenchmark = useCallback(
     async (testMode: InferenceMode) => {
-      // If testing local, ensure it's initialized
+    // If testing local, ensure it's initialized
       if (testMode === "local") {
-        if (!isInitialized) {
+      if (!isInitialized) {
           setMode("local"); // This triggers init
-          // Wait for init... (basic check, in reality might need to wait for effect)
-          // If engine is not ready, we can't run.
-          // A better UX would be to auto-await init, but for now we'll just error if not ready.
-          if (!engine) {
+        // Wait for init... (basic check, in reality might need to wait for effect)
+        // If engine is not ready, we can't run.
+        // A better UX would be to auto-await init, but for now we'll just error if not ready.
+        if (!engine) {
             setError(
               "Please switch to Local mode and wait for it to initialize before benchmarking."
             );
-            return;
-          }
+          return;
         }
       }
+    }
 
-      await runBenchmarkSuite(testMode, async (prompt, onUpdate, onMetrics) => {
+    await runBenchmarkSuite(testMode, async (prompt, onUpdate, onMetrics) => {
         if (testMode === "local") {
           if (!engine) throw new Error("No engine");
           // For benchmarks, each prompt is independent (no conversation history)
@@ -322,7 +322,7 @@ function App() {
             },
           ];
           return generateLocal(singleMessage, onUpdate, onMetrics);
-        } else {
+       } else {
           // For benchmarks, each prompt is independent (no conversation history)
           const singleMessage: Message[] = [
             {
@@ -333,8 +333,8 @@ function App() {
             },
           ];
           return generateRemoteResponse(singleMessage, onUpdate, onMetrics);
-        }
-      });
+       }
+    });
     },
     [runBenchmarkSuite, isInitialized, engine, generateLocal]
   );
@@ -353,7 +353,7 @@ function App() {
         },
       ]
     : baseMessages;
-
+  
   const handleClearChat = useCallback(async () => {
     // Clear messages in React state for the current mode
     setMessagesByMode((prev) => ({
@@ -378,15 +378,15 @@ function App() {
       }
     }
   }, [mode]);
-
+ 
   return (
     <div className="flex flex-col h-screen bg-white">
       <ModeSelector mode={mode} onModeChange={setMode} />
-      <SettingsMenu
-        onClearChat={handleClearChat}
+      <SettingsMenu 
+        onClearChat={handleClearChat} 
         onOpenBenchmark={() => setIsBenchmarkOpen(true)}
       />
-
+      
       {error && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg shadow-sm">
           {error}
@@ -398,7 +398,7 @@ function App() {
           </button>
         </div>
       )}
-
+      
       <ChatArea
         messages={displayMessages}
         isLoading={isLoading && !currentResponse}

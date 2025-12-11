@@ -1,6 +1,7 @@
 // Remote API service for cloud-based inference
 
 import { InferenceMetrics, Message } from "../types";
+import { BenchmarkResult } from "../hooks/useBenchmark";
 
 // Get API base URL from environment or use default
 // Normalize to ensure it doesn't include /api/chat
@@ -42,14 +43,21 @@ export async function fetchRemoteChatHistory(): Promise<Message[]> {
     // Filter out system messages so they don't appear in the UI
     const messages: Message[] = data.messages
       .filter((msg: any) => msg.role !== "system")
-      .map((msg: any, index: number) => ({
-        id: `remote-${Date.parse(
-          msg.timestamp || new Date().toISOString()
-        )}-${index}`,
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-        timestamp: new Date(msg.timestamp || new Date().toISOString()),
-      }));
+      .map((msg: any, index: number) => {
+        const message: Message = {
+          id: `remote-${Date.parse(
+            msg.timestamp || new Date().toISOString()
+          )}-${index}`,
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+          timestamp: new Date(msg.timestamp || new Date().toISOString()),
+        };
+        // Include metrics if they exist (for assistant messages)
+        if (msg.metrics) {
+          message.metrics = msg.metrics as InferenceMetrics;
+        }
+        return message;
+      });
 
     return messages;
   } catch (error) {
@@ -190,5 +198,85 @@ export async function generateRemoteResponse(
         error instanceof Error ? error.message : "Unknown error"
       }`
     );
+  }
+}
+
+// ============== Benchmark API Functions ==============
+
+export async function fetchBenchmarkResults(): Promise<BenchmarkResult[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/benchmarks`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch benchmarks: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.warn("Benchmark fetch error:", data.error);
+      return [];
+    }
+
+    return data.results || [];
+  } catch (error) {
+    console.error("Error fetching benchmark results:", error);
+    return [];
+  }
+}
+
+export async function saveBenchmarkResults(
+  results: BenchmarkResult[]
+): Promise<number> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/benchmarks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ results }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to save benchmarks: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.warn("Benchmark save error:", data.error);
+      return 0;
+    }
+
+    return data.saved || 0;
+  } catch (error) {
+    console.error("Error saving benchmark results:", error);
+    return 0;
+  }
+}
+
+export async function clearBenchmarkResults(): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/benchmarks`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to clear benchmarks: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("Benchmark results cleared:", data);
+  } catch (error) {
+    console.error("Error clearing benchmark results:", error);
+    throw error;
   }
 }
