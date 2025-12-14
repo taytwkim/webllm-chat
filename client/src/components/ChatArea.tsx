@@ -16,10 +16,10 @@ export default function ChatArea({ messages, isLoading }: ChatAreaProps) {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pb-32 min-h-0">
-      <div className="max-w-3xl mx-auto flex flex-col">
+      <div className="max-w-3xl mx-auto flex flex-col min-h-full">
         {messages.length === 0 ? (
           // Empty state: fully centered
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <div className="flex-1 flex flex-col items-center justify-center text-center min-h-full">
             <h1 className="text-3xl font-semibold text-gray-900 mb-2">
               Ready when you are.
             </h1>
