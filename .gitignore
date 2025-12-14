@@ -24,3 +24,12 @@ api/.env.*
 client/dist
 client/dist-ssr
 api/dist
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/terraform.tfvars
+# But keep example files
+!terraform/terraform.tfvars.example

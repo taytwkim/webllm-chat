@@ -1,22 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
-import { InferenceMode, Message } from './types';
-import { useWebLLM } from './hooks/useWebLLM';
-import { generateRemoteResponse } from './services/remoteApi';
-import ModeSelector from './components/ModeSelector';
-import ChatArea from './components/ChatArea';
-import ChatInput from './components/ChatInput';
-import LoadingModal from './components/LoadingModal';
-import SettingsMenu from './components/SettingsMenu';
+import { useState, useEffect, useCallback } from "react";
+import { InferenceMode, Message, InferenceMetrics } from "./types";
+import { useWebLLM } from "./hooks/useWebLLM";
+import { useBenchmark } from "./hooks/useBenchmark";
+import {
+  generateRemoteResponse,
+  fetchRemoteChatHistory,
+  clearRemoteChatHistory,
+} from "./services/remoteApi";
+import ModeSelector from "./components/ModeSelector";
+import ChatArea from "./components/ChatArea";
+import ChatInput from "./components/ChatInput";
+import LoadingModal from "./components/LoadingModal";
+import SettingsMenu from "./components/SettingsMenu";
+import BenchmarkDashboard from "./components/BenchmarkDashboard";
 
-const LOCAL_DB_NAME = 'webllm-chat';
+const LOCAL_DB_NAME = "webllm-chat";
 const LOCAL_DB_VERSION = 1;
-const LOCAL_STORE_NAME = 'localMessages';
+const LOCAL_STORE_NAME = "localMessages";
 
-type StoredMessage = Omit<Message, 'timestamp'> & { timestamp: string };
+type StoredMessage = Omit<Message, "timestamp"> & { timestamp: string };
 
 function openLocalDB(): Promise<IDBDatabase> {
-  if (typeof indexedDB === 'undefined') {
-    return Promise.reject(new Error('IndexedDB not supported'));
+  if (typeof indexedDB === "undefined") {
+    return Promise.reject(new Error("IndexedDB not supported"));
   }
 
   return new Promise((resolve, reject) => {
@@ -34,7 +40,7 @@ function openLocalDB(): Promise<IDBDatabase> {
     };
 
     request.onerror = () => {
-      reject(request.error ?? new Error('Failed to open IndexedDB'));
+      reject(request.error ?? new Error("Failed to open IndexedDB"));
     };
   });
 }
@@ -43,9 +49,9 @@ async function loadLocalMessages(): Promise<Message[]> {
   try {
     const db = await openLocalDB();
     return await new Promise((resolve, reject) => {
-      const tx = db.transaction(LOCAL_STORE_NAME, 'readonly');
+      const tx = db.transaction(LOCAL_STORE_NAME, "readonly");
       const store = tx.objectStore(LOCAL_STORE_NAME);
-      const req = store.get('local');
+      const req = store.get("local");
 
       req.onsuccess = () => {
         const data = (req.result as StoredMessage[] | undefined) ?? [];
@@ -53,17 +59,17 @@ async function loadLocalMessages(): Promise<Message[]> {
           ...m,
           timestamp: new Date(m.timestamp),
         }));
-        console.log('[IndexedDB] Loaded local messages:', messages.length);
+        console.log("[IndexedDB] Loaded local messages:", messages.length);
         resolve(messages);
       };
 
       req.onerror = () => {
-        console.error('loadLocalMessages error:', req.error);
-        reject(req.error ?? new Error('Failed to read local messages'));
+        console.error("loadLocalMessages error:", req.error);
+        reject(req.error ?? new Error("Failed to read local messages"));
       };
     });
   } catch (e) {
-    console.error('loadLocalMessages outer error:', e);
+    console.error("loadLocalMessages outer error:", e);
     return [];
   }
 }
@@ -77,21 +83,21 @@ async function saveLocalMessages(messages: Message[]): Promise<void> {
     }));
 
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(LOCAL_STORE_NAME, 'readwrite');
+      const tx = db.transaction(LOCAL_STORE_NAME, "readwrite");
       const store = tx.objectStore(LOCAL_STORE_NAME);
-      const req = store.put(stored, 'local');
+      const req = store.put(stored, "local");
 
       req.onsuccess = () => {
-        console.log('[IndexedDB] Saved local messages:', stored.length);
+        console.log("[IndexedDB] Saved local messages:", stored.length);
         resolve();
       };
       req.onerror = () => {
-        console.error('saveLocalMessages error:', req.error);
-        reject(req.error ?? new Error('Failed to save local messages'));
+        console.error("saveLocalMessages error:", req.error);
+        reject(req.error ?? new Error("Failed to save local messages"));
       };
     });
   } catch (e) {
-    console.error('saveLocalMessages outer error:', e);
+    console.error("saveLocalMessages outer error:", e);
   }
 }
 
@@ -100,26 +106,26 @@ async function clearLocalMessagesFromDB(): Promise<void> {
     const db = await openLocalDB();
 
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(LOCAL_STORE_NAME, 'readwrite');
+      const tx = db.transaction(LOCAL_STORE_NAME, "readwrite");
       const store = tx.objectStore(LOCAL_STORE_NAME);
-      const req = store.delete('local');
+      const req = store.delete("local");
 
       req.onsuccess = () => {
-        console.log('[IndexedDB] Cleared local messages');
+        console.log("[IndexedDB] Cleared local messages");
         resolve();
       };
       req.onerror = () => {
-        console.error('clearLocalMessagesFromDB error:', req.error);
-        reject(req.error ?? new Error('Failed to clear local messages'));
+        console.error("clearLocalMessagesFromDB error:", req.error);
+        reject(req.error ?? new Error("Failed to clear local messages"));
       };
     });
   } catch (e) {
-    console.error('clearLocalMessagesFromDB outer error:', e);
+    console.error("clearLocalMessagesFromDB outer error:", e);
   }
 }
 
 function App() {
-  const [mode, setMode] = useState<InferenceMode>('remote');
+  const [mode, setMode] = useState<InferenceMode>("remote");
   const [messagesByMode, setMessagesByMode] = useState<{
     local: Message[];
     remote: Message[];
@@ -129,8 +135,9 @@ function App() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentResponse, setCurrentResponse] = useState<string>('');
+  const [currentResponse, setCurrentResponse] = useState<string>("");
   const [hasHydratedLocal, setHasHydratedLocal] = useState(false);
+  const [isBenchmarkOpen, setIsBenchmarkOpen] = useState(false);
 
   const {
     engine,
@@ -142,10 +149,24 @@ function App() {
     initProgress,
   } = useWebLLM();
 
+  const {
+    results: benchResults,
+    comparisonResults,
+    isRunning: isBenchRunning,
+    isComparing: isBenchComparing,
+    progress: benchProgress,
+    currentMode: benchCurrentMode,
+    runBenchmarkSuite,
+    runComparisonBenchmark,
+    clearResults: clearBenchResults,
+    downloadCSV: downloadBenchCSV,
+  } = useBenchmark();
+
   // hydrate on mount
   useEffect(() => {
     let cancelled = false;
 
+    // Load local messages from IndexedDB
     loadLocalMessages().then((loaded) => {
       if (cancelled) return;
 
@@ -154,6 +175,16 @@ function App() {
         local: loaded,
       }));
       setHasHydratedLocal(true);
+    });
+
+    // Load remote messages from MongoDB via API
+    fetchRemoteChatHistory().then((loaded) => {
+      if (cancelled) return;
+
+      setMessagesByMode((prev) => ({
+        ...prev,
+        remote: loaded,
+      }));
     });
 
     return () => {
@@ -168,7 +199,7 @@ function App() {
   
   // Initialize WebLLM when switching to local mode
   useEffect(() => {
-    if (mode === 'local' && !isInitialized && !isWebLLMLoading && !engine) {
+    if (mode === "local" && !isInitialized && !isWebLLMLoading && !engine) {
       initEngine().catch((err) => {
         setError(`Failed to initialize local model: ${err.message}`);
       });
@@ -188,7 +219,7 @@ function App() {
 
       const userMessage: Message = {
         id: Date.now().toString(),
-        role: 'user',
+        role: "user",
         content,
         timestamp: new Date(),
       };
@@ -201,30 +232,49 @@ function App() {
 
       setIsLoading(true);
       setError(null);
-      setCurrentResponse('');
+      setCurrentResponse("");
+
+      // Temp holder for metrics so we can attach them to the final message
+      let finalMetrics: InferenceMetrics | undefined;
+      const onMetrics = (m: InferenceMetrics) => {
+        finalMetrics = m;
+      };
 
       try {
-        let assistantContent = '';
+        let assistantContent = "";
 
-        if (mode === 'local') {
+        // Get conversation history including the new user message
+        // (state update is async, so we manually include the new message)
+        const conversationHistory = [...messagesByMode[modeKey], userMessage];
+
+        if (mode === "local") {
           if (!isInitialized || !engine) {
-            throw new Error('Local model not initialized. Please wait...');
+            throw new Error("Local model not initialized. Please wait...");
           }
 
-          assistantContent = await generateLocal(content, (text) => {
+          assistantContent = await generateLocal(
+            conversationHistory,
+            (text) => {
             setCurrentResponse(text);
-          });
+            },
+            onMetrics
+          );
         } else {
-          assistantContent = await generateRemoteResponse(content, (text) => {
+          assistantContent = await generateRemoteResponse(
+            conversationHistory,
+            (text) => {
             setCurrentResponse(text);
-          });
+            },
+            onMetrics
+          );
         }
 
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
-          role: 'assistant',
+          role: "assistant",
           content: assistantContent,
           timestamp: new Date(),
+          metrics: finalMetrics, // Attach metrics here
         };
 
         // Add assistant message to the current mode's chat
@@ -232,18 +282,89 @@ function App() {
           ...prev,
           [modeKey]: [...prev[modeKey], assistantMessage],
         }));
-        setCurrentResponse('');
+        setCurrentResponse("");
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : 'An unknown error occurred';
+          err instanceof Error ? err.message : "An unknown error occurred";
         setError(errorMessage);
-        console.error('Error generating response:', err);
+        console.error("Error generating response:", err);
       } finally {
         setIsLoading(false);
       }
     },
     [mode, isInitialized, engine, generateLocal]
   );
+
+  const handleRunBenchmark = useCallback(
+    async (testMode: InferenceMode) => {
+    // If testing local, ensure it's initialized
+      if (testMode === "local") {
+      if (!isInitialized) {
+          setMode("local"); // This triggers init
+        // Wait for init... (basic check, in reality might need to wait for effect)
+        // If engine is not ready, we can't run.
+        // A better UX would be to auto-await init, but for now we'll just error if not ready.
+        if (!engine) {
+            setError(
+              "Please switch to Local mode and wait for it to initialize before benchmarking."
+            );
+          return;
+        }
+      }
+    }
+
+    await runBenchmarkSuite(testMode, async (prompt, onUpdate, onMetrics) => {
+        if (testMode === "local") {
+          if (!engine) throw new Error("No engine");
+          // For benchmarks, each prompt is independent (no conversation history)
+          const singleMessage: Message[] = [
+            {
+              id: "benchmark",
+              role: "user",
+              content: prompt,
+              timestamp: new Date(),
+            },
+          ];
+          return generateLocal(singleMessage, onUpdate, onMetrics);
+       } else {
+          // For benchmarks, each prompt is independent (no conversation history)
+          const singleMessage: Message[] = [
+            {
+              id: "benchmark",
+              role: "user",
+              content: prompt,
+              timestamp: new Date(),
+            },
+          ];
+          return generateRemoteResponse(singleMessage, onUpdate, onMetrics);
+       }
+    });
+    },
+    [runBenchmarkSuite, isInitialized, engine, generateLocal]
+  );
+
+  const handleRunComparisonBenchmark = useCallback(async () => {
+    if (!isInitialized || !engine) {
+      setError("Please switch to Local mode and wait for it to initialize before running comparison.");
+      return;
+    }
+
+    const localGenerateFn = async (prompt: string, onUpdate: (t: string) => void, onMetrics: (m: InferenceMetrics) => void) => {
+      const singleMessage: Message[] = [
+        { id: "benchmark", role: "user", content: prompt, timestamp: new Date() },
+      ];
+      return generateLocal(singleMessage, onUpdate, onMetrics);
+    };
+
+    const remoteGenerateFn = async (prompt: string, onUpdate: (t: string) => void, onMetrics: (m: InferenceMetrics) => void) => {
+      const singleMessage: Message[] = [
+        { id: "benchmark", role: "user", content: prompt, timestamp: new Date() },
+      ];
+      return generateRemoteResponse(singleMessage, onUpdate, onMetrics);
+    };
+
+    await runComparisonBenchmark(localGenerateFn, remoteGenerateFn, isInitialized);
+  }, [runComparisonBenchmark, isInitialized, engine, generateLocal]);
 
   // Display current streaming response
   const baseMessages = messagesByMode[mode];
@@ -252,37 +373,48 @@ function App() {
     ? [
         ...baseMessages,
         {
-          id: 'streaming',
-          role: 'assistant' as const,
+          id: "streaming",
+          role: "assistant" as const,
           content: currentResponse,
           timestamp: new Date(),
         },
       ]
     : baseMessages;
   
-  const handleClearChat = useCallback(() => {
+  const handleClearChat = useCallback(async () => {
     // Clear messages in React state for the current mode
     setMessagesByMode((prev) => ({
       ...prev,
       [mode]: [],
     }));
-    setCurrentResponse('');
+    setCurrentResponse("");
     setError(null);
 
-    // If we're in local mode, also clear IndexedDB
-    if (mode === 'local') {
+    // Clear storage based on mode
+    if (mode === "local") {
+      // Clear IndexedDB for local mode
       clearLocalMessagesFromDB().catch((e) => {
-        console.error('Failed to clear local messages from IndexedDB:', e);
+        console.error("Failed to clear local messages from IndexedDB:", e);
       });
+    } else {
+      // Clear MongoDB for remote mode
+      try {
+        await clearRemoteChatHistory();
+      } catch (e) {
+        console.error("Failed to clear remote messages from MongoDB:", e);
+      }
     }
   }, [mode]);
  
   return (
     <div className="flex flex-col h-screen bg-white">
-      <ModeSelector mode={mode} onModeChange={setMode}/>
-      <SettingsMenu onClearChat={handleClearChat} />
+      <ModeSelector mode={mode} onModeChange={setMode} />
+      <SettingsMenu 
+        onClearChat={handleClearChat} 
+        onOpenBenchmark={() => setIsBenchmarkOpen(true)}
+      />
       
-      { error && (
+      {error && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg shadow-sm">
           {error}
           <button
@@ -291,23 +423,43 @@ function App() {
           >
             ×
           </button>
-        </div>)}
+        </div>
+      )}
       
-      <ChatArea messages={displayMessages} isLoading={isLoading && !currentResponse} />
+      <ChatArea
+        messages={displayMessages}
+        isLoading={isLoading && !currentResponse}
+      />
+
+      <BenchmarkDashboard
+        isOpen={isBenchmarkOpen}
+        onClose={() => setIsBenchmarkOpen(false)}
+        results={benchResults}
+        comparisonResults={comparisonResults}
+        isRunning={isBenchRunning}
+        isComparing={isBenchComparing}
+        progress={benchProgress}
+        currentMode={benchCurrentMode}
+        onRun={handleRunBenchmark}
+        onRunComparison={handleRunComparisonBenchmark}
+        onDownload={downloadBenchCSV}
+        onClear={clearBenchResults}
+        isLocalReady={isInitialized}
+      />
 
       <LoadingModal
-        open={mode === 'local' && isWebLLMLoading && !isInitialized}
-        message={initProgress?.text ?? 'Initializing local model...'}
+        open={mode === "local" && isWebLLMLoading && !isInitialized}
+        message={initProgress?.text ?? "Initializing local model..."}
         progress={initProgress?.progress}
       />
 
       <ChatInput
         onSend={handleSend}
-        disabled={isLoading || (mode === 'local' && !isInitialized)}
+        disabled={isLoading || (mode === "local" && !isInitialized)}
         placeholder={
-          mode === 'local' && !isInitialized
-            ? 'Initializing local model...'
-            : '+ Ask anything'
+          mode === "local" && !isInitialized
+            ? "Initializing local model..."
+            : "+ Ask anything"
         }
       />
     </div>
