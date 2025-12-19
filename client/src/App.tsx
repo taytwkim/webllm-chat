@@ -147,6 +147,7 @@ function App() {
     initEngine,
     generate: generateLocal,
     initProgress,
+    resetChat,
   } = useWebLLM();
 
   const {
@@ -382,29 +383,29 @@ function App() {
     : baseMessages;
   
   const handleClearChat = useCallback(async () => {
-    // Clear messages in React state for the current mode
-    setMessagesByMode((prev) => ({
-      ...prev,
-      [mode]: [],
-    }));
+    setMessagesByMode((prev) => ({ ...prev, [mode]: [] }));
     setCurrentResponse("");
     setError(null);
 
-    // Clear storage based on mode
     if (mode === "local") {
-      // Clear IndexedDB for local mode
+      try {
+        await resetChat(false);
+      } catch (e) {
+        console.error("Failed to reset WebLLM chat state:", e);
+      }
+
+      // Clear persisted UI messages
       clearLocalMessagesFromDB().catch((e) => {
         console.error("Failed to clear local messages from IndexedDB:", e);
       });
     } else {
-      // Clear MongoDB for remote mode
       try {
         await clearRemoteChatHistory();
       } catch (e) {
         console.error("Failed to clear remote messages from MongoDB:", e);
       }
     }
-  }, [mode]);
+  }, [mode, resetChat]);
  
   return (
     <div className="flex flex-col h-screen bg-white">
