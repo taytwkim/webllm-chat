@@ -1,11 +1,11 @@
 # WebLLM Chat
 
-A browser-based chat application that allows users to choose between local inference (using WebLLM) and remote API inference.
+Chatbot that supports hybrid inference, allowing the user to switch between on-device and remote execution. This hybrid setup reflects a common deployment pattern in which complex queries are routed to the cloud while simpler requests are handled on-device.
 
 ## Features
 
-- 🤖 **Local Inference**: Run LLMs directly in the browser using WebLLM (no server required)
-- ☁️ **Remote Inference**: Use cloud-based API for faster or higher-quality responses
+- 🤖 **Local Inference**: Run LLMs directly in the browser using WebLLM
+- ☁️ **Remote Inference**: Use cloud-hosted API for faster or higher-quality responses
 - 💬 **ChatGPT-like UI**: Clean, modern interface inspired by ChatGPT
 - 🔄 **Mode Switching**: Easily switch between local and remote inference modes
 - 📊 **Streaming Responses**: Real-time streaming of responses for both modes
@@ -35,32 +35,11 @@ npm run dev
 
 1. **Choose Inference Mode**: Click the mode selector in the top-left corner to switch between:
    - 🌐 **Local**: Uses WebLLM to run models directly in your browser
-   - ☁️ **Remote**: Uses the cloud API (requires backend setup)
+   - ☁️ **Remote**: Uses the cloud API (vLLM + FastAPI)
 
 2. **Start Chatting**: Type your message in the input field and press Enter or click the send button
 
 3. **First Local Use**: When switching to local mode for the first time, the model will be downloaded and initialized (this may take a few minutes)
-
-## Project Structure
-
-```
-webllm-chat/
-├── src/
-│   ├── components/       # React components
-│   │   ├── ChatArea.tsx      # Main chat display area
-│   │   ├── ChatInput.tsx     # Input component
-│   │   ├── MessageBubble.tsx # Individual message display
-│   │   └── ModeSelector.tsx   # Local/Remote mode switcher
-│   ├── hooks/
-│   │   └── useWebLLM.ts      # WebLLM integration hook
-│   ├── services/
-│   │   └── remoteApi.ts      # Remote API service
-│   ├── types.ts              # TypeScript type definitions
-│   ├── App.tsx               # Main application component
-│   └── main.tsx              # Entry point
-├── package.json
-└── README.md
-```
 
 ## Configuration
 
@@ -79,7 +58,7 @@ VITE_REMOTE_API_URL=http://localhost:8000/api/chat
 
 ### WebLLM Model
 
-The default model is `TinyLlama-1.1B-Chat-v0.4`. You can change this in `src/hooks/useWebLLM.ts`:
+The default model is `Llama-3.2-3B-Instruct-q4f32_1-MLC`. You can change this in `src/hooks/useWebLLM.ts`:
 
 ```typescript
 const DEFAULT_MODEL = 'Your-Model-Name';
@@ -107,9 +86,5 @@ WebLLM requires WebGPU support. Check compatibility:
 - First-time local model initialization requires downloading model weights (~500MB-2GB depending on model)
 - Model weights are cached in the browser for subsequent uses
 - Local inference performance depends on your device's GPU capabilities
-- Remote API integration requires backend setup (see backend team)
-
-## License
-
-MIT
+- Remote API integration requires backend setup
 
