@@ -15,7 +15,6 @@ load_dotenv()
 
 # Configuration
 VLLM_API_BASE = os.getenv("VLLM_API_BASE", "http://localhost:8000/v1")
-# If using vLLM, you often need to specify the model name that was loaded
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-2-7b-chat")
 PORT = int(os.getenv("PORT", "8001"))
 
@@ -38,7 +37,7 @@ app = FastAPI()
 # Enable CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -339,4 +338,3 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=PORT)
-

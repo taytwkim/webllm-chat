@@ -48,7 +48,7 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
             Switch chat
           </span>
           <span className="flex items-center gap-1 text-sm font-semibold text-gray-900 whitespace-nowrap">
-            {mode === 'local' ? '💻 Local (LLaMa 3.2 3B)' : '☁️ Remote'}
+            {mode === 'local' ? '💻 Local' : '☁️ Remote'}
             <svg
               className="w-4 h-4 text-gray-500 ml-1"
               fill="none"
@@ -86,7 +86,7 @@ export default function ModeSelector({ mode, onModeChange }: ModeSelectorProps) 
               }`}
             >
               <span>💻</span>
-              <span className="whitespace-nowrap">Local (LLaMa 3.2 3B)</span>
+              <span className="whitespace-nowrap">Local</span>
             </button>
           </div>
         )}
